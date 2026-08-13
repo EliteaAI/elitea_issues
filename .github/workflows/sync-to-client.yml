@@ -1,0 +1,487 @@
+name: Sync to A.S. Watson Client Board
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened]
+  issue_comment:
+    types: [created, edited]
+  project_v2_item:
+    types: [edited]
+
+jobs:
+  sync-issue:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if issue belongs to Watson (ASW)
+        id: check_client
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          INTERNAL_PROJECT_ID: PVT_kwDOECVEvc4BTt9j
+          WATSON_OPTION_ID: 5bf2b8c9
+          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+        run: |
+          CLIENT_VALUE=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  projectItems(first: 10) {
+                    nodes {
+                      project { id }
+                      fieldValueByName(name: "Client") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { optionId }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f id="$ISSUE_NODE_ID" \
+            --jq '.data.node.projectItems.nodes[] | select(.project.id == "'"$INTERNAL_PROJECT_ID"'") | .fieldValueByName.optionId // empty')
+
+          if [ "$CLIENT_VALUE" = "$WATSON_OPTION_ID" ]; then
+            echo "is_watson=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_watson=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get client issue mapping
+        if: steps.check_client.outputs.is_watson == 'true'
+        id: mapping
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          EXISTING=$(gh issue list \
+            --repo EliteaAI/client-as-watson \
+            --search "\"<!-- internal_ref: $ISSUE_NUMBER -->\"" \
+            --json number --jq '.[0].number // empty')
+          echo "client_issue=$EXISTING" >> $GITHUB_OUTPUT
+
+      - name: Create mirror issue in client repo
+        if: steps.check_client.outputs.is_watson == 'true' && steps.mapping.outputs.client_issue == ''
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          BODY="$ISSUE_BODY
+
+          ---
+          <!-- internal_ref: $ISSUE_NUMBER -->"
+
+          CLIENT_ISSUE=$(gh issue create \
+            --repo EliteaAI/client-as-watson \
+            --title "$ISSUE_TITLE" \
+            --body "$BODY" \
+            --json number --jq '.number')
+
+          echo "client_issue=$CLIENT_ISSUE" >> $GITHUB_OUTPUT
+
+      - name: Sync project fields to client project
+        if: steps.check_client.outputs.is_watson == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          INTERNAL_PROJECT_ID: PVT_kwDOECVEvc4BTt9j
+          CLIENT_PROJECT_ID: PVT_kwDOECVEvc4BgPHe
+          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+          CLIENT_ISSUE_NUMBER: ${{ steps.create.outputs.client_issue || steps.mapping.outputs.client_issue }}
+        run: |
+          FIELDS=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  projectItems(first: 10) {
+                    nodes {
+                      project { id }
+                      status: fieldValueByName(name: "Status") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      priority: fieldValueByName(name: "Priority") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      requestType: fieldValueByName(name: "Request Type") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      eliteaVersion: fieldValueByName(name: "Elitea Version") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f id="$ISSUE_NODE_ID" \
+            --jq '.data.node.projectItems.nodes[] | select(.project.id == "'"$INTERNAL_PROJECT_ID"'")')
+
+          INTERNAL_STATUS=$(echo "$FIELDS" | jq -r '.status.name // empty')
+          INTERNAL_PRIORITY=$(echo "$FIELDS" | jq -r '.priority.name // empty')
+          INTERNAL_REQUEST_TYPE=$(echo "$FIELDS" | jq -r '.requestType.name // empty')
+          INTERNAL_VERSION=$(echo "$FIELDS" | jq -r '.eliteaVersion.name // empty')
+
+          case "$INTERNAL_STATUS" in
+            "New") CLIENT_STATUS="Open" ;;
+            "In Progress"|"AI:Human review"|"AI: Communication Approved"|"AI: AI Assisted Resolution"|"AI: Draft reply") CLIENT_STATUS="In Progress" ;;
+            "To be Checked"|"To be in Release") CLIENT_STATUS="To be Released" ;;
+            "On Hold") CLIENT_STATUS="On Hold" ;;
+            "Resolved"|"Done") CLIENT_STATUS="Resolved" ;;
+            *) CLIENT_STATUS="" ;;
+          esac
+
+          case "$INTERNAL_REQUEST_TYPE" in
+            "Toolkit configuration Issues") CLIENT_REQUEST_TYPE="Toolkit Configuration Issues" ;;
+            "Best practices and usage") CLIENT_REQUEST_TYPE="Best Practices and Usage" ;;
+            "Documentation related") CLIENT_REQUEST_TYPE="Documentation" ;;
+            "Admin portal and  Initial Setup") CLIENT_REQUEST_TYPE="Admin Portal and Initial Setup" ;;
+            "Feature Requests") CLIENT_REQUEST_TYPE="Feature Request" ;;
+            "Elitea platform issues, bugs, questions") CLIENT_REQUEST_TYPE="Platform Issues / Bugs" ;;
+            "Deployment/ Update/ issue with update") CLIENT_REQUEST_TYPE="Deployment / Update Issues" ;;
+            "Issue with external systems") CLIENT_REQUEST_TYPE="External System Issues" ;;
+            *) CLIENT_REQUEST_TYPE="" ;;
+          esac
+
+          CLIENT_ISSUE_NODE=$(gh api repos/EliteaAI/client-as-watson/issues/$CLIENT_ISSUE_NUMBER --jq '.node_id')
+
+          CLIENT_ITEM_ID=$(gh api graphql -f query='
+            mutation($projectId: ID!, $contentId: ID!) {
+              addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                item { id }
+              }
+            }' \
+            -f projectId="$CLIENT_PROJECT_ID" \
+            -f contentId="$CLIENT_ISSUE_NODE" \
+            --jq '.data.addProjectV2ItemById.item.id')
+
+          update_field() {
+            local FIELD_NAME=$1
+            local FIELD_ID=$2
+            local VALUE=$3
+
+            OPTION_ID=$(gh api graphql -f query='
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField { name options { id name } }
+                      }
+                    }
+                  }
+                }
+              }' -f projectId="$CLIENT_PROJECT_ID" \
+              --jq ".data.node.fields.nodes[] | select(.name == \"$FIELD_NAME\") | .options[] | select(.name == \"$VALUE\") | .id")
+
+            if [ -n "$OPTION_ID" ]; then
+              gh api graphql -f query='
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                    value: { singleSelectOptionId: $optionId }
+                  }) { projectV2Item { id } }
+                }' \
+                -f projectId="$CLIENT_PROJECT_ID" \
+                -f itemId="$CLIENT_ITEM_ID" \
+                -f fieldId="$FIELD_ID" \
+                -f optionId="$OPTION_ID" > /dev/null
+            fi
+          }
+
+          [ -n "$CLIENT_STATUS" ] && update_field "Status" "PVTSSF_lADOECVEvc4BgPHezhacRMM" "$CLIENT_STATUS"
+          [ -n "$INTERNAL_PRIORITY" ] && update_field "Priority" "PVTSSF_lADOECVEvc4BgPHezhacRk4" "$INTERNAL_PRIORITY"
+          [ -n "$CLIENT_REQUEST_TYPE" ] && update_field "Request Type" "PVTSSF_lADOECVEvc4BgPHezhacRms" "$CLIENT_REQUEST_TYPE"
+          [ -n "$INTERNAL_VERSION" ] && update_field "Elitea Version" "PVTSSF_lADOECVEvc4BgPHezhacRnE" "$INTERNAL_VERSION"
+
+          echo "Fields synced for client issue #$CLIENT_ISSUE_NUMBER"
+
+      - name: Update mirror issue title/body on edit
+        if: >
+          steps.check_client.outputs.is_watson == 'true' &&
+          github.event.action == 'edited' &&
+          steps.mapping.outputs.client_issue != ''
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          CLIENT_ISSUE: ${{ steps.mapping.outputs.client_issue }}
+        run: |
+          gh issue edit "$CLIENT_ISSUE" \
+            --repo EliteaAI/client-as-watson \
+            --title "$ISSUE_TITLE" \
+            --body "$ISSUE_BODY
+
+          ---
+          <!-- internal_ref: $ISSUE_NUMBER -->"
+
+      - name: Sync close/reopen state
+        if: >
+          steps.check_client.outputs.is_watson == 'true' &&
+          (github.event.action == 'closed' || github.event.action == 'reopened') &&
+          steps.mapping.outputs.client_issue != ''
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          ACTION: ${{ github.event.action }}
+          CLIENT_ISSUE: ${{ steps.mapping.outputs.client_issue }}
+        run: |
+          if [ "$ACTION" = "closed" ]; then
+            gh issue close "$CLIENT_ISSUE" --repo EliteaAI/client-as-watson
+          elif [ "$ACTION" = "reopened" ]; then
+            gh issue reopen "$CLIENT_ISSUE" --repo EliteaAI/client-as-watson
+          fi
+
+  sync-project-fields:
+    if: github.event_name == 'project_v2_item'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync updated project fields to client
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          INTERNAL_PROJECT_ID: PVT_kwDOECVEvc4BTt9j
+          CLIENT_PROJECT_ID: PVT_kwDOECVEvc4BgPHe
+          ITEM_NODE_ID: ${{ github.event.projects_v2_item.node_id }}
+          WATSON_OPTION_ID: 5bf2b8c9
+        run: |
+          ITEM_DATA=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on ProjectV2Item {
+                  content {
+                    ... on Issue { number }
+                  }
+                  fieldValueByName(name: "Client") {
+                    ... on ProjectV2ItemFieldSingleSelectValue { optionId }
+                  }
+                }
+              }
+            }' -f id="$ITEM_NODE_ID")
+
+          CLIENT_OPTION=$(echo "$ITEM_DATA" | jq -r '.data.node.fieldValueByName.optionId // empty')
+          if [ "$CLIENT_OPTION" != "$WATSON_OPTION_ID" ]; then
+            echo "Not a Watson issue, skipping."
+            exit 0
+          fi
+
+          ISSUE_NUMBER=$(echo "$ITEM_DATA" | jq -r '.data.node.content.number')
+
+          CLIENT_ISSUE=$(gh issue list \
+            --repo EliteaAI/client-as-watson \
+            --search "\"<!-- internal_ref: $ISSUE_NUMBER -->\"" \
+            --json number --jq '.[0].number // empty')
+
+          if [ -z "$CLIENT_ISSUE" ]; then
+            echo "No mirror issue found for #$ISSUE_NUMBER"
+            exit 0
+          fi
+
+          INTERNAL_NODE_ID=$(gh api repos/EliteaAI/elitea_issues/issues/$ISSUE_NUMBER --jq '.node_id')
+
+          FIELDS=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  projectItems(first: 10) {
+                    nodes {
+                      project { id }
+                      status: fieldValueByName(name: "Status") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      priority: fieldValueByName(name: "Priority") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      requestType: fieldValueByName(name: "Request Type") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      eliteaVersion: fieldValueByName(name: "Elitea Version") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f id="$INTERNAL_NODE_ID" \
+            --jq ".data.node.projectItems.nodes[] | select(.project.id == \"$INTERNAL_PROJECT_ID\")")
+
+          INTERNAL_STATUS=$(echo "$FIELDS" | jq -r '.status.name // empty')
+          INTERNAL_PRIORITY=$(echo "$FIELDS" | jq -r '.priority.name // empty')
+          INTERNAL_REQUEST_TYPE=$(echo "$FIELDS" | jq -r '.requestType.name // empty')
+          INTERNAL_VERSION=$(echo "$FIELDS" | jq -r '.eliteaVersion.name // empty')
+
+          case "$INTERNAL_STATUS" in
+            "New") CLIENT_STATUS="Open" ;;
+            "In Progress"|"AI:Human review"|"AI: Communication Approved"|"AI: AI Assisted Resolution"|"AI: Draft reply") CLIENT_STATUS="In Progress" ;;
+            "To be Checked"|"To be in Release") CLIENT_STATUS="To be Released" ;;
+            "On Hold") CLIENT_STATUS="On Hold" ;;
+            "Resolved"|"Done") CLIENT_STATUS="Resolved" ;;
+            *) CLIENT_STATUS="" ;;
+          esac
+
+          case "$INTERNAL_REQUEST_TYPE" in
+            "Toolkit configuration Issues") CLIENT_REQUEST_TYPE="Toolkit Configuration Issues" ;;
+            "Best practices and usage") CLIENT_REQUEST_TYPE="Best Practices and Usage" ;;
+            "Documentation related") CLIENT_REQUEST_TYPE="Documentation" ;;
+            "Admin portal and  Initial Setup") CLIENT_REQUEST_TYPE="Admin Portal and Initial Setup" ;;
+            "Feature Requests") CLIENT_REQUEST_TYPE="Feature Request" ;;
+            "Elitea platform issues, bugs, questions") CLIENT_REQUEST_TYPE="Platform Issues / Bugs" ;;
+            "Deployment/ Update/ issue with update") CLIENT_REQUEST_TYPE="Deployment / Update Issues" ;;
+            "Issue with external systems") CLIENT_REQUEST_TYPE="External System Issues" ;;
+            *) CLIENT_REQUEST_TYPE="" ;;
+          esac
+
+          CLIENT_ISSUE_NODE=$(gh api repos/EliteaAI/client-as-watson/issues/$CLIENT_ISSUE --jq '.node_id')
+
+          CLIENT_ITEM_ID=$(gh api graphql -f query='
+            mutation($projectId: ID!, $contentId: ID!) {
+              addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+                item { id }
+              }
+            }' \
+            -f projectId="$CLIENT_PROJECT_ID" \
+            -f contentId="$CLIENT_ISSUE_NODE" \
+            --jq '.data.addProjectV2ItemById.item.id')
+
+          update_field() {
+            local FIELD_NAME=$1
+            local FIELD_ID=$2
+            local VALUE=$3
+
+            OPTION_ID=$(gh api graphql -f query='
+              query($projectId: ID!) {
+                node(id: $projectId) {
+                  ... on ProjectV2 {
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField { name options { id name } }
+                      }
+                    }
+                  }
+                }
+              }' -f projectId="$CLIENT_PROJECT_ID" \
+              --jq ".data.node.fields.nodes[] | select(.name == \"$FIELD_NAME\") | .options[] | select(.name == \"$VALUE\") | .id")
+
+            if [ -n "$OPTION_ID" ]; then
+              gh api graphql -f query='
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                    value: { singleSelectOptionId: $optionId }
+                  }) { projectV2Item { id } }
+                }' \
+                -f projectId="$CLIENT_PROJECT_ID" \
+                -f itemId="$CLIENT_ITEM_ID" \
+                -f fieldId="$FIELD_ID" \
+                -f optionId="$OPTION_ID" > /dev/null
+            fi
+          }
+
+          [ -n "$CLIENT_STATUS" ] && update_field "Status" "PVTSSF_lADOECVEvc4BgPHezhacRMM" "$CLIENT_STATUS"
+          [ -n "$INTERNAL_PRIORITY" ] && update_field "Priority" "PVTSSF_lADOECVEvc4BgPHezhacRk4" "$INTERNAL_PRIORITY"
+          [ -n "$CLIENT_REQUEST_TYPE" ] && update_field "Request Type" "PVTSSF_lADOECVEvc4BgPHezhacRms" "$CLIENT_REQUEST_TYPE"
+          [ -n "$INTERNAL_VERSION" ] && update_field "Elitea Version" "PVTSSF_lADOECVEvc4BgPHezhacRnE" "$INTERNAL_VERSION"
+
+          echo "Fields synced for client issue #$CLIENT_ISSUE"
+
+  sync-comment-to-client:
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if comment has #client tag
+        id: check_tag
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          if echo "$COMMENT_BODY" | grep -qi '#client'; then
+            echo "has_tag=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tag=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if issue belongs to Watson (ASW)
+        if: steps.check_tag.outputs.has_tag == 'true'
+        id: check_client
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          INTERNAL_PROJECT_ID: PVT_kwDOECVEvc4BTt9j
+          WATSON_OPTION_ID: 5bf2b8c9
+          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+        run: |
+          CLIENT_VALUE=$(gh api graphql -f query='
+            query($id: ID!) {
+              node(id: $id) {
+                ... on Issue {
+                  projectItems(first: 10) {
+                    nodes {
+                      project { id }
+                      fieldValueByName(name: "Client") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { optionId }
+                      }
+                    }
+                  }
+                }
+              }
+            }' -f id="$ISSUE_NODE_ID" \
+            --jq '.data.node.projectItems.nodes[] | select(.project.id == "'"$INTERNAL_PROJECT_ID"'") | .fieldValueByName.optionId // empty')
+
+          if [ "$CLIENT_VALUE" = "$WATSON_OPTION_ID" ]; then
+            echo "is_watson=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_watson=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Find client mirror issue
+        if: steps.check_tag.outputs.has_tag == 'true' && steps.check_client.outputs.is_watson == 'true'
+        id: find_mirror
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          CLIENT_ISSUE=$(gh issue list \
+            --repo EliteaAI/client-as-watson \
+            --search "\"<!-- internal_ref: $ISSUE_NUMBER -->\"" \
+            --json number --jq '.[0].number // empty')
+          echo "client_issue=$CLIENT_ISSUE" >> $GITHUB_OUTPUT
+
+      - name: Post public comment to client repo
+        if: >
+          steps.check_tag.outputs.has_tag == 'true' &&
+          steps.check_client.outputs.is_watson == 'true' &&
+          steps.find_mirror.outputs.client_issue != '' &&
+          github.event.action == 'created'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          CLIENT_ISSUE: ${{ steps.find_mirror.outputs.client_issue }}
+        run: |
+          CLEAN_BODY=$(echo "$COMMENT_BODY" | sed 's/#client//gi' | sed '/^[[:space:]]*$/d')
+
+          gh issue comment "$CLIENT_ISSUE" \
+            --repo EliteaAI/client-as-watson \
+            --body "**Support Team:**
+
+          $CLEAN_BODY
+
+          <!-- synced_from_internal -->"
+
+      - name: Update synced comment on edit
+        if: >
+          steps.check_tag.outputs.has_tag == 'true' &&
+          steps.check_client.outputs.is_watson == 'true' &&
+          steps.find_mirror.outputs.client_issue != '' &&
+          github.event.action == 'edited'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          CLIENT_ISSUE: ${{ steps.find_mirror.outputs.client_issue }}
+        run: |
+          SYNCED_ID=$(gh api repos/EliteaAI/client-as-watson/issues/$CLIENT_ISSUE/comments \
+            --jq '.[] | select(.body | contains("<!-- synced_from_internal -->")) | .id' | tail -1)
+
+          if [ -n "$SYNCED_ID" ]; then
+            CLEAN_BODY=$(echo "$COMMENT_BODY" | sed 's/#client//gi' | sed '/^[[:space:]]*$/d')
+            gh api repos/EliteaAI/client-as-watson/issues/comments/$SYNCED_ID \
+              -X PATCH \
+              -f body="**Support Team:**
+
+          $CLEAN_BODY
+
+          <!-- synced_from_internal -->"
+          fi
