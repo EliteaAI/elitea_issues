@@ -1,0 +1,42 @@
+{
+ "ok": false,
+ "checks": [
+  {
+   "name": "7 saved",
+   "ok": true,
+   "observed": {
+    "stored": 7,
+    "toast": "Configuration saved successfully"
+   }
+  },
+  {
+   "name": "restore-default control exists for Max Chat Starters per Version",
+   "ok": false,
+   "observed": {
+    "control_count": 0,
+    "restore_controls_on_page": 0
+   }
+  },
+  {
+   "name": "the restore-default pattern exists on other Guardrails fields",
+   "ok": false,
+   "observed": {
+    "controls": []
+   },
+   "info": true
+  },
+  {
+   "name": "never-set platform shows 4 (needs a fresh stack with no stored key)",
+   "ok": true,
+   "info": true,
+   "observed": "NOT RUN on DEV: a value is already stored"
+  },
+  {
+   "name": "cleanup: baseline restored",
+   "ok": true,
+   "observed": {
+    "status": 200
+   }
+  }
+ ]
+}
