@@ -1,0 +1,142 @@
+{
+ "ok": false,
+ "checks": [
+  {
+   "name": "setup: limit 10",
+   "ok": true,
+   "observed": 10
+  },
+  {
+   "name": "1. M=10 draft: 200, suggests at most 4, review \"n/10 added.\"",
+   "ok": true,
+   "observed": {
+    "status": 200,
+    "n": 4,
+    "counter": "4/10 added."
+   }
+  },
+  {
+   "name": "2. M=10 drafts (8 UI samples) all suggest at most 4, review counter matches",
+   "ok": false,
+   "observed": {
+    "counts": [
+     4,
+     4,
+     4,
+     5,
+     5,
+     5,
+     4,
+     5
+    ],
+    "over4": [
+     {
+      "status": 200,
+      "n": 5,
+      "counter": "5/10 added.",
+      "prompt": "An onboarding guide for new employees at a software company"
+     },
+     {
+      "status": 200,
+      "n": 5,
+      "counter": "5/10 added.",
+      "prompt": "A travel helper that suggests day trips around Lisbon"
+     },
+     {
+      "status": 200,
+      "n": 5,
+      "counter": "5/10 added.",
+      "prompt": "A support assistant for a home internet provider"
+     },
+     {
+      "status": 200,
+      "n": 5,
+      "counter": "5/10 added.",
+      "prompt": "A coach that helps runners prepare for their first 10k"
+     }
+    ]
+   }
+  },
+  {
+   "name": "setup: limit 2",
+   "ok": true,
+   "observed": 2
+  },
+  {
+   "name": "3. M=2 draft asking for 6: 200 (not rejected), exactly 2 starters, review \"2/2 added.\" and no error",
+   "ok": true,
+   "observed": {
+    "status": 200,
+    "starters": [
+     "Help me plan an easy day hike this weekend.",
+     "What should I pack for a two-day hiking trip?"
+    ],
+    "counter": "2/2 added.",
+    "err": ""
+   }
+  },
+  {
+   "name": "4. direct call at M=2: 200, at most 2 starters, no 400/422",
+   "ok": true,
+   "observed": {
+    "status": 200,
+    "body": "{\"name\":\"Weekend Hiking Planner\",\"description\":\"A friendly assistant that helps people plan enjoyable, practical weekend hiking trips tailored to their interests, fitness level, location, schedule, and gear.\",\"instructions\":\"You are a friendly, practical weekend hiking trip-planning assistant. Help "
+   }
+  },
+  {
+   "name": "4. edit-mode draft on an 8-starter version at M=2: 200, not cut below the stored count rule (≤ 8), no 400/422",
+   "ok": true,
+   "observed": {
+    "status": 200,
+    "n": 8
+   }
+  },
+  {
+   "name": "4. edit-mode draft keeps more than M (version keeps its starters through an AI edit)",
+   "ok": true,
+   "observed": 8,
+   "info": true
+  },
+  {
+   "name": "4. direct call at M=10 asking for 12: 200, at most 10",
+   "ok": true,
+   "observed": {
+    "status": 200,
+    "n": 10
+   }
+  },
+  {
+   "name": "cleanup: baseline restored (nothing was created)",
+   "ok": true,
+   "observed": 200
+  }
+ ],
+ "drafts": {
+  "m10": [
+   "How can I check on my order?",
+   "What allergens are in this product?",
+   "Can I change my pickup time?",
+   "I have a severe allergy—what should I check before ordering?"
+  ],
+  "m10_ui_counts": [
+   4,
+   4,
+   4,
+   5,
+   5,
+   5,
+   4,
+   5
+  ],
+  "m2": [
+   "Help me plan an easy day hike this weekend.",
+   "What should I pack for a two-day hiking trip?"
+  ],
+  "api_m2": [
+   "Help me find a scenic day hike for this weekend.",
+   "Plan a beginner-friendly hiking weekend with a packing checklist."
+  ],
+  "edit8": 8,
+  "ask12": 10
+ }
+}
