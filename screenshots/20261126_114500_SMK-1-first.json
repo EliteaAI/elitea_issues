@@ -1,0 +1,495 @@
+{
+ "ok": false,
+ "checks": [
+  {
+   "name": "run started: first tool step is shown",
+   "ok": true,
+   "observed": [
+    "PRF Postman Echo delay: waitSeconds"
+   ]
+  },
+  {
+   "name": "switched to B without a dialog (URL is chat B)",
+   "ok": true,
+   "observed": "https://dev.elitea.ai/app/chat/671?name=R7385+B+idle"
+  },
+  {
+   "name": "A1 row shows the running spinner while away (chat-list-item-running-icon)",
+   "ok": true,
+   "observed": {
+    "running": true,
+    "unread": null
+   }
+  },
+  {
+   "name": "spinner tooltip is \"Generating…\"",
+   "ok": true,
+   "observed": "Generating…"
+  },
+  {
+   "name": "REST folder list: has_running_task = true for A1",
+   "ok": true,
+   "observed": true
+  },
+  {
+   "name": "REST: the run kept going while the user was on B",
+   "ok": true,
+   "observed": {
+    "group_id": 2205,
+    "uuid": "ab767d8b-d576-4f4c-afb1-03581e05f49a",
+    "is_streaming": true,
+    "task_id": "f52f7e69-b3f5-4c56-b03f-adb343ebcae7",
+    "text": "",
+    "tools": [
+     "waitSeconds",
+     "getPost"
+    ]
+   }
+  },
+  {
+   "name": "back on A1: \"Agent is running...\" is shown",
+   "ok": true,
+   "observed": true
+  },
+  {
+   "name": "back on A1: Stop button is shown",
+   "ok": true,
+   "observed": true
+  },
+  {
+   "name": "back on A1: steps finished while away are shown (≥2)",
+   "ok": true,
+   "observed": [
+    "PRF Postman Echo delay",
+    "PRF JSONPlaceholder: getPost"
+   ]
+  },
+  {
+   "name": "step labels right after re-attach (cosmetic: rebuilt rows may lack \": <tool>\")",
+   "ok": true,
+   "info": true,
+   "observed": [
+    "PRF Postman Echo delay",
+    "PRF JSONPlaceholder: getPost"
+   ]
+  },
+  {
+   "name": "new steps arrive live after the return (UI step count grows before the end)",
+   "ok": false,
+   "observed": [
+    {
+     "s": 0,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 2,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 3,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 5,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 6,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 7,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 8,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 10,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 11,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 12,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 14,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 15,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 16,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 18,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 19,
+     "ui": 2,
+     "rest": 3,
+     "unnamed": 2
+    },
+    {
+     "s": 20,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 22,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 23,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 24,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 26,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 27,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 29,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 31,
+     "ui": 2,
+     "rest": 5,
+     "unnamed": 2
+    },
+    {
+     "s": 32,
+     "ui": 5,
+     "rest": 5,
+     "unnamed": 0
+    }
+   ]
+  },
+  {
+   "name": "every step that REST reports done is shown live within 5 s (AC-7c)",
+   "ok": false,
+   "observed": [
+    {
+     "s": 0,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 2,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 3,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 5,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 6,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 7,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 8,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 10,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 11,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 12,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 14,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 15,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 16,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 18,
+     "ui": 2,
+     "rest": 2,
+     "unnamed": 2
+    },
+    {
+     "s": 19,
+     "ui": 2,
+     "rest": 3,
+     "unnamed": 2
+    },
+    {
+     "s": 20,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 22,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 23,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 24,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 26,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 27,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 29,
+     "ui": 2,
+     "rest": 4,
+     "unnamed": 2
+    },
+    {
+     "s": 31,
+     "ui": 2,
+     "rest": 5,
+     "unnamed": 2
+    },
+    {
+     "s": 32,
+     "ui": 5,
+     "rest": 5,
+     "unnamed": 0
+    }
+   ]
+  },
+  {
+   "name": "step rows keep \"<toolkit>: <tool>\" names while live after the return (AC-7: same names as message_traces)",
+   "ok": false,
+   "observed": [
+    "0s unnamed=2/2",
+    "2s unnamed=2/2",
+    "3s unnamed=2/2",
+    "5s unnamed=2/2",
+    "6s unnamed=2/2",
+    "7s unnamed=2/2",
+    "8s unnamed=2/2",
+    "10s unnamed=2/2",
+    "11s unnamed=2/2",
+    "12s unnamed=2/2",
+    "14s unnamed=2/2",
+    "15s unnamed=2/2",
+    "16s unnamed=2/2",
+    "18s unnamed=2/2",
+    "19s unnamed=2/2",
+    "20s unnamed=2/2",
+    "22s unnamed=2/2",
+    "23s unnamed=2/2",
+    "24s unnamed=2/2",
+    "26s unnamed=2/2",
+    "27s unnamed=2/2",
+    "29s unnamed=2/2",
+    "31s unnamed=2/2",
+    "32s unnamed=0/5"
+   ]
+  },
+  {
+   "name": "run ends in the UI with \"RUN-DONE SMK1\"",
+   "ok": true,
+   "observed": " Echo delay: waitSeconds\n· 10.2s\nAnhropic Claude Sonnet 5.5\n· 1.5s\n\nRUN-DONE SMK1\nPost 3 \"ea molestias quasi exercitationem repellat qui ipsa sit aut\" was written by Leanne Graham (Sincere@april.biz)."
+  },
+  {
+   "name": "end state settled after the answer text (s)",
+   "ok": true,
+   "info": true,
+   "observed": 0
+  },
+  {
+   "name": "after the end: Stop button gone",
+   "ok": true,
+   "observed": null
+  },
+  {
+   "name": "after the end: A1 row spinner gone (no dot either: chat is open)",
+   "ok": true,
+   "observed": {
+    "running": false,
+    "unread": null
+   }
+  },
+  {
+   "name": "final answer still shown after switching back",
+   "ok": true,
+   "observed": " Echo delay: waitSeconds\n· 10.2s\nAnhropic Claude Sonnet 5.5\n· 1.5s\n\nRUN-DONE SMK1\nPost 3 \"ea molestias quasi exercitationem repellat qui ipsa sit aut\" was written by Leanne Graham (Sincere@april.biz)."
+  },
+  {
+   "name": "UI shows 5 steps",
+   "ok": true,
+   "observed": [
+    "PRF Postman Echo delay: waitSeconds",
+    "PRF JSONPlaceholder: getPost",
+    "PRF Postman Echo delay: waitSeconds",
+    "PRF JSONPlaceholder: getUser",
+    "PRF Postman Echo delay: waitSeconds"
+   ]
+  },
+  {
+   "name": "UI steps = REST message_traces tool calls",
+   "ok": true,
+   "observed": {
+    "ui": 5,
+    "rest": [
+     "waitSeconds",
+     "getPost",
+     "waitSeconds",
+     "getUser",
+     "waitSeconds"
+    ]
+   }
+  },
+  {
+   "name": "REST: the message group is not streaming",
+   "ok": true,
+   "observed": false
+  },
+  {
+   "name": "no DELETE /task/... sent (the run was never stopped)",
+   "ok": true,
+   "observed": []
+  },
+  {
+   "name": "no leave-warning dialog appeared during the case",
+   "ok": true,
+   "observed": []
+  }
+ ],
+ "deletes": [],
+ "runFrames": [
+  {
+   "at": "140614",
+   "frame": "42[\"chat_run_status\",{\"project_id\":564,\"conversation_id\":672,\"conversation_uuid\":\"073bce20-3b5d-48a4-b045-3ce3dcb05fb5\",\"message_group_uuid\":\"ab767d8b-d576-4f4c-afb1-03581e05f49a\",\"status\":\"running\"}]"
+  },
+  {
+   "at": "140614",
+   "frame": "42[\"chat_run_status\",{\"project_id\":564,\"conversation_id\":672,\"conversation_uuid\":\"073bce20-3b5d-48a4-b045-3ce3dcb05fb5\",\"message_group_uuid\":\"ab767d8b-d576-4f4c-afb1-03581e05f49a\",\"status\":\"running\"}]"
+  },
+  {
+   "at": "140706",
+   "frame": "42[\"chat_run_status\",{\"project_id\":564,\"conversation_id\":672,\"conversation_uuid\":\"073bce20-3b5d-48a4-b045-3ce3dcb05fb5\",\"message_group_uuid\":\"ab767d8b-d576-4f4c-afb1-03581e05f49a\",\"status\":\"finished\"}]"
+  },
+  {
+   "at": "140706",
+   "frame": "42[\"chat_run_status\",{\"project_id\":564,\"conversation_id\":672,\"conversation_uuid\":\"073bce20-3b5d-48a4-b045-3ce3dcb05fb5\",\"message_group_uuid\":\"ab767d8b-d576-4f4c-afb1-03581e05f49a\",\"status\":\"finished\"}]"
+  }
+ ]
+}
